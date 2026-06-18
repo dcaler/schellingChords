@@ -16,6 +16,9 @@ outputs/
 *.wav
 *.sf2
 
+# Build-pipeline spec (machinery, lives on disk for the doer; not shipped)
+designdocs/tasks.yaml
+
 # Editor / OS
 .DS_Store
 *.swp
