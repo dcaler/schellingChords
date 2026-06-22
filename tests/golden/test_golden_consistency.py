@@ -3,7 +3,9 @@ Internal-consistency guard for the FROZEN golden values (build infrastructure).
 
 These checks are IMPLEMENTATION-INDEPENDENT: they assert that the frozen golden
 constants agree with each other and with objective ground truth (overlap counts vs
-actual set intersections; window counts vs the 1D slot list vs the index lists). So they
+actual set intersections; window counts vs the 1D slot list vs the index lists; each
+named chord's pitch classes vs music theory — a triad is a stack of thirds whose
+quality must match its label). So they
 PASS at Phase 0 with no implementation, and FAIL LOUDLY if the golden module is
 internally contradictory — which would otherwise silently make a downstream module
 unsatisfiable (the impl can't edit a frozen test, so a wrong golden value = a hard,
@@ -14,7 +16,68 @@ Not part of any module's behavioral contract — added deliberately to catch bad
 """
 from __future__ import annotations
 
+import re
+
 import tests.golden as G
+
+
+def _triad_quality(pcs):
+    """Quality implied by the PITCH CLASSES: try each note as the root and look for a
+    clean stack of two thirds. Returns major/minor/diminished/augmented, or None if the
+    three pitch classes are not a recognisable triad at all (e.g. a random set)."""
+    s = sorted({p % 12 for p in pcs})
+    if len(s) != 3:
+        return None
+    stacks = {(4, 3): "major", (3, 4): "minor", (3, 3): "diminished", (4, 4): "augmented"}
+    for r in range(3):
+        a, b, c = s[r], s[(r + 1) % 3], s[(r + 2) % 3]
+        q = stacks.get(((b - a) % 12, (c - b) % 12))
+        if q:
+            return q
+    return None
+
+
+def _named_quality(name):
+    """Quality implied by the NAME. Tolerant of encodings (m/min, dim/°, aug/+, maj/bare)
+    so it survives the worker renaming chords; returns None if the name doesn't pin a
+    quality (then we only check the pitch classes form *some* valid triad)."""
+    n = name.lower()
+    if "dim" in n or "°" in name:
+        return "diminished"
+    if "aug" in n or "+" in name:
+        return "augmented"
+    if "maj" in n:
+        return "major"
+    if "min" in n:
+        return "minor"
+    m = re.match(r"^[a-g][#b]?(.*)$", n)          # strip root letter + accidental
+    suffix = m.group(1) if m else n
+    if suffix == "" or suffix.isdigit():
+        return "major"
+    if suffix.startswith("m"):
+        return "minor"
+    return None
+
+
+def test_named_chords_are_triads_matching_their_label():
+    """DOMAIN-TRUTH guard: each named chord's pitch classes must form a real triad (a
+    stack of thirds), and where the name pins a quality (major/minor/dim/aug) the pitch
+    classes must agree. Internal consistency alone can't catch this — a uniformly
+    mislabelled set (e.g. B-flat where the leading tone B should be) stays self-consistent
+    in the overlap/distance tables yet is musically wrong and would render bad voicings."""
+    chords = getattr(G, "DIATONIC_CHORDS", None)
+    if not chords:
+        return
+    checks = 0
+    for name, pcs in chords.items():
+        actual = _triad_quality(pcs)
+        assert actual is not None, f"{name}={sorted(pcs)} is not a triad (no third-stack)"
+        expected = _named_quality(name)
+        if expected is not None:
+            assert actual == expected, \
+                f"{name}={sorted(pcs)} is a {actual} triad but its name says {expected}"
+        checks += 1
+    assert checks > 0, "DIATONIC_CHORDS present but empty"
 
 
 def test_overlap_counts_are_true_intersections():
