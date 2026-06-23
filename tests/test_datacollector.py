@@ -24,10 +24,10 @@ def test_stability_profile_shape_and_values(mock_history):
     assert profile[3] < 1.0
 
 def test_datacollector_wiring():
-    from schellingchords.model import SchellingChordsModel
+    from schellingchords.model import SchellingChordModel
     from mesa import DataCollector
 
-    model = SchellingChordsModel(
+    model = SchellingChordModel(
         n_chord_types=3, bars_per_window=4, vacancy_fraction=0.25,
         tolerance=0.6, happiness=0.5, radius=2, tempo_bpm=120, seed=42
     )

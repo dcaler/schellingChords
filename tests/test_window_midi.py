@@ -6,13 +6,13 @@ from tests.golden import (
     WINDOW_OCCUPIED_INDICES,
     WINDOW_OCCUPIED_SLOTS,
 )
-from schellingchords.config import SchellingConfig
+from schellingchords.config import Config
 from schellingchords.sonify import chord_to_notes, window_to_midi
 
 
 @pytest.fixture
 def cfg():
-    return SchellingConfig(
+    return Config(
         n_chord_types=3,
         bars_per_window=4,
         vacancy_fraction=0.625,
@@ -31,7 +31,7 @@ def window_chords():
 
 
 @pytest.mark.parametrize("chord_name, expected_pcs", [
-    (*key, val) for key, val in DIATONIC_CHORDS.items()
+    (key, val) for key, val in DIATONIC_CHORDS.items()
 ])
 def test_chord_to_notes(chord_name, expected_pcs):
     """M6.T1: chord_to_notes returns correct MIDI pitches for each chord type."""

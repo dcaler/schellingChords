@@ -6,13 +6,13 @@ from tests.golden import (
     WINDOW_OCCUPIED_INDICES,
     WINDOW_OCCUPIED_SLOTS,
 )
-from schellingchords.config import SchellingConfig
+from schellingchords.config import Config
 from schellingchords.sonify import trajectory_to_midi, render_wav
 
 
 @pytest.fixture
 def cfg():
-    return SchellingConfig(
+    return Config(
         n_chord_types=3,
         bars_per_window=4,
         vacancy_fraction=0.625,

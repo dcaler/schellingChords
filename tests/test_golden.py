@@ -80,12 +80,12 @@ class TestModelIntegration:
 
     def test_model_initialization(self, config, chord_population, window_with_vacancies):
         """Model should be instantiable with config and population data."""
-        from schellingchords.model import SchellingChordsModel
-        model = SchellingChordsModel(config)
+        from schellingchords.model import SchellingChordModel
+        model = SchellingChordModel(config)
         assert model is not None
 
     def test_model_step(self, config, chord_population, window_with_vacancies):
         """Model step should execute without error."""
-        from schellingchords.model import SchellingChordsModel
-        model = SchellingChordsModel(config)
+        from schellingchords.model import SchellingChordModel
+        model = SchellingChordModel(config)
         model.step()

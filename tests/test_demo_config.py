@@ -10,8 +10,8 @@ class TestDemoConfig:
         assert set(demo_config_kwargs.keys()) == expected_fields
 
     def test_config_instantiation(self, demo_config_kwargs):
-        from schellingchords.config import SchellingConfig
-        cfg = SchellingConfig(**demo_config_kwargs)
+        from schellingchords.config import Config
+        cfg = Config(**demo_config_kwargs)
         assert cfg.bars_per_window == 4
         assert cfg.vacancy_fraction == 0.25
         assert cfg.seed == 42

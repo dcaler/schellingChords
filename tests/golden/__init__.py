@@ -73,3 +73,10 @@ WINDOW_SLOTS: list[int] = [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0]
 WINDOW_OCCUPIED_INDICES: list[int] = [0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 14]
 WINDOW_OCCUPIED_SLOTS: int = len(WINDOW_OCCUPIED_INDICES)
 WINDOW_VACANT_SLOTS: int = WINDOW_TOTAL_SLOTS - WINDOW_OCCUPIED_SLOTS
+
+# Freeze reconcile (Cale+Claude): names later frozen tests import (test_golden.py,
+# test_config.py) that the P0 author omitted. DERIVED from WINDOW_SLOTS so they cannot
+# disagree with it; tests/golden/test_golden_consistency.py validates WINDOW_VACANT_INDICES.
+WINDOW_VACANT_INDICES: list[int] = [i for i, s in enumerate(WINDOW_SLOTS) if not s]
+WINDOW_OCCUPIED_COUNT: int = WINDOW_OCCUPIED_SLOTS   # alias used by test_golden.py
+WINDOW_VACANT_COUNT: int = WINDOW_VACANT_SLOTS        # alias used by test_golden.py

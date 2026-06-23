@@ -2,14 +2,14 @@ import pytest
 import numpy as np
 
 def test_gate_observables_trend():
-    from schellingchords.model import SchellingChordsModel
+    from schellingchords.model import SchellingChordModel
 
     seeds = [1, 2, 3, 4, 5]
     n_steps = 10
     all_runs = []
 
     for seed in seeds:
-        model = SchellingChordsModel(
+        model = SchellingChordModel(
             n_chord_types=3, bars_per_window=4, vacancy_fraction=0.25,
             tolerance=0.6, happiness=0.5, radius=2, tempo_bpm=120, seed=seed
         )
