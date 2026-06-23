@@ -57,3 +57,28 @@ class Chord:
 
     def __repr__(self) -> str:
         return f"Chord(name='{self.name}', root={self.root}, quality='{self.quality}', pitch_classes={self.pitch_classes!r}, midi_voicing={self.midi_voicing!r})"
+
+
+def diatonic_major() -> List[Chord]:
+    chords = [
+        Chord("C", 0, "major", frozenset([0, 4, 7]), (60, 64, 67)),
+        Chord("Dm", 2, "minor", frozenset([2, 5, 9]), (62, 65, 69)),
+        Chord("Em", 4, "minor", frozenset([4, 7, 11]), (64, 67, 71)),
+        Chord("F", 0, "major", frozenset([0, 5, 9]), (60, 65, 69)),
+        Chord("G", 2, "major", frozenset([2, 7, 11]), (62, 67, 71)),
+        Chord("Am", 0, "minor", frozenset([0, 4, 9]), (60, 64, 69)),
+        Chord("Bdim", 2, "diminished", frozenset([2, 5, 11]), (62, 65, 71))
+    ]
+    return chords
+
+
+def VOCABULARIES() -> Dict[str, Any]:
+    return {
+        "diatonic_major": diatonic_major
+    }
+
+
+def select_types(vocabulary: List[Chord], n: int, rng: object) -> List[Chord]:
+    if not (2 <= n <= len(vocabulary)):
+        raise ValueError("n must be in [2, len(vocabulary)]")
+    return list(rng.sample(vocabulary, n))
