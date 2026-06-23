@@ -1,0 +1,3 @@
+"""
+Metrics subpackage for SchellingChords.
+"""
