@@ -1,30 +1,75 @@
-# Golden values for SchellingChords M8 acceptance
-# Chords: C, Dm, F, G (major/minor triads in C major)
-# Pitch classes: 0=C, 1=C#, ..., 11=B
-DIATONIC_CHORDS = {
-    "C": [0, 4, 7],
-    "Dm": [2, 5, 9],
-    "F": [0, 5, 8],
-    "G": [2, 7, 10],
+"""Golden values for SchellingChords tests.
+
+All values are hand-computed and internally consistent.
+Distance metric: Jaccard distance = 1 - |a ∩ b| / |a ∪ b|
+Identical chords -> 0.0, disjoint chords -> 1.0
+"""
+
+# Diatonic chords in C major (pitch classes 0-11, sorted)
+DIATONIC_CHORDS: dict[str, list[int]] = {
+    "C": [0, 4, 7],      # C major
+    "Dm": [2, 5, 9],     # D minor
+    "Em": [4, 7, 11],    # E minor
+    "F": [0, 5, 9],      # F major
+    "G": [2, 7, 11],     # G major
+    "Am": [0, 4, 9],     # A minor
+    "Bdim": [2, 5, 11],  # B diminished
 }
 
-# Jaccard distance: 1 - |A ∩ B| / |A ∪ B|
-# All chords have size 3. Union size = 6 - overlap.
-# Identical chords -> 0.0, disjoint chords -> 1.0
-OVERLAP_COUNTS = {
+# Overlap counts: |a ∩ b| for all unordered pairs
+OVERLAP_COUNTS: dict[tuple[str, str], int] = {
     ("C", "Dm"): 0,
+    ("C", "Em"): 2,
     ("C", "F"): 1,
     ("C", "G"): 1,
-    ("Dm", "F"): 1,
+    ("C", "Am"): 2,
+    ("C", "Bdim"): 0,
+    ("Dm", "Em"): 0,
+    ("Dm", "F"): 2,
     ("Dm", "G"): 1,
+    ("Dm", "Am"): 1,
+    ("Dm", "Bdim"): 2,
+    ("Em", "F"): 0,
+    ("Em", "G"): 2,
+    ("Em", "Am"): 1,
+    ("Em", "Bdim"): 1,
     ("F", "G"): 0,
+    ("F", "Am"): 2,
+    ("F", "Bdim"): 1,
+    ("G", "Am"): 0,
+    ("G", "Bdim"): 2,
+    ("Am", "Bdim"): 0,
 }
 
-DISTANCES = {
-    ("C", "Dm"): 1.0,
-    ("C", "F"): 0.8,
-    ("C", "G"): 0.8,
-    ("Dm", "F"): 0.8,
-    ("Dm", "G"): 0.8,
-    ("F", "G"): 1.0,
+# Jaccard distances: 1 - |a ∩ b| / |a ∪ b|
+# Recomputed from overlaps above; all in [0.0, 1.0]
+DISTANCES: dict[tuple[str, str], float] = {
+    ("C", "Dm"): 1.0,       # 1 - 0/6
+    ("C", "Em"): 0.5,       # 1 - 2/4
+    ("C", "F"): 0.8,        # 1 - 1/5
+    ("C", "G"): 0.8,        # 1 - 1/5
+    ("C", "Am"): 0.5,       # 1 - 2/4
+    ("C", "Bdim"): 1.0,     # 1 - 0/6
+    ("Dm", "Em"): 1.0,      # 1 - 0/6
+    ("Dm", "F"): 0.5,       # 1 - 2/4
+    ("Dm", "G"): 0.8,       # 1 - 1/5
+    ("Dm", "Am"): 0.8,      # 1 - 1/5
+    ("Dm", "Bdim"): 0.5,    # 1 - 2/4
+    ("Em", "F"): 1.0,       # 1 - 0/6
+    ("Em", "G"): 0.5,       # 1 - 2/4
+    ("Em", "Am"): 0.8,      # 1 - 1/5
+    ("Em", "Bdim"): 0.8,    # 1 - 1/5
+    ("F", "G"): 1.0,        # 1 - 0/6
+    ("F", "Am"): 0.5,       # 1 - 2/4
+    ("F", "Bdim"): 0.8,     # 1 - 1/5
+    ("G", "Am"): 1.0,       # 1 - 0/6
+    ("G", "Bdim"): 0.5,     # 1 - 2/4
+    ("Am", "Bdim"): 1.0,    # 1 - 0/6
 }
+
+# 1D window fixture constants (bars_per_window=4, 4 beats/bar)
+WINDOW_TOTAL_SLOTS: int = 16
+WINDOW_SLOTS: list[int] = [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0]
+WINDOW_OCCUPIED_INDICES: list[int] = [0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 14]
+WINDOW_OCCUPIED_SLOTS: int = len(WINDOW_OCCUPIED_INDICES)
+WINDOW_VACANT_SLOTS: int = WINDOW_TOTAL_SLOTS - WINDOW_OCCUPIED_SLOTS
