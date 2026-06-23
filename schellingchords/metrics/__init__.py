@@ -1,3 +1,1 @@
-"""
-Metrics subpackage for SchellingChords.
-"""
+"""Metrics for chord distance computation."""
