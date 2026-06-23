@@ -10,14 +10,14 @@ def metric():
 
 def test_identity(metric):
     """M2.T2: d(x, x) == 0.0"""
-    chord = DIATONIC_CHORDS["I"]
+    chord = DIATONIC_CHORDS["C"]
     assert metric.distance(chord, chord) == 0.0
 
 
 def test_symmetry(metric):
     """M2.T2: d(a, b) == d(b, a)"""
-    a = DIATONIC_CHORDS["I"]
-    b = DIATONIC_CHORDS["V"]
+    a = DIATONIC_CHORDS["C"]
+    b = DIATONIC_CHORDS["G"]
     assert metric.distance(a, b) == metric.distance(b, a)
 
 

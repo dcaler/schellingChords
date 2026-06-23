@@ -46,13 +46,13 @@ class TestDiatonicMajor:
         assert names == set(DIATONIC_CHORDS.keys())
 
     @pytest.mark.parametrize("name,pitch_classes", [
-        ("I", [0, 4, 7]),
-        ("ii", [2, 5, 9]),
-        ("iii", [4, 7, 11]),
-        ("IV", [0, 5, 9]),
-        ("V", [2, 7, 11]),
-        ("vi", [0, 4, 9]),
-        ("vii°", [2, 5, 11]),
+        ("C", [0, 4, 7]),
+        ("Dm", [2, 5, 9]),
+        ("Em", [4, 7, 11]),
+        ("F", [0, 5, 9]),
+        ("G", [2, 7, 11]),
+        ("Am", [0, 4, 9]),
+        ("Bdim", [2, 5, 11]),
     ])
     def test_pitch_classes_match_golden(self, diatonic_major, name, pitch_classes):
         chords = diatonic_major()

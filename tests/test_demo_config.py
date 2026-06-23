@@ -1,6 +1,22 @@
 import pytest
 from tests.golden import DIATONIC_CHORDS, OVERLAP_COUNTS, DISTANCES
 
+
+@pytest.fixture
+def demo_config_kwargs():
+    """Exactly the 8 Config fields for the demo run (happiness is a [0,1] fraction)."""
+    return {
+        "n_chord_types": 4,
+        "bars_per_window": 4,
+        "vacancy_fraction": 0.25,
+        "tolerance": 0.5,
+        "happiness": 0.6,
+        "radius": 2,
+        "tempo_bpm": 120,
+        "seed": 42,
+    }
+
+
 class TestDemoConfig:
     def test_config_fields_exist(self, demo_config_kwargs):
         expected_fields = {

@@ -53,7 +53,7 @@ class TestGateChords:
             bars_per_window=4,
             vacancy_fraction=0.3,
             tolerance=0.5,
-            happiness=3,
+            happiness=0.5,
             radius=2,
             tempo_bpm=120,
             seed=42,
@@ -111,7 +111,7 @@ class TestGateChords:
             bars_per_window=4,
             vacancy_fraction=0.25,
             tolerance=0.6,
-            happiness=2,
+            happiness=0.5,
             radius=3,
             tempo_bpm=100,
             seed=99,
@@ -136,7 +136,7 @@ class TestGateChords:
             bars_per_window=4,
             vacancy_fraction=0.4,
             tolerance=0.4,
-            happiness=4,
+            happiness=0.5,
             radius=1,
             tempo_bpm=140,
             seed=7,
@@ -159,7 +159,7 @@ class TestGateChords:
             bars_per_window=4,
             vacancy_fraction=0.3,
             tolerance=0.5,
-            happiness=3,
+            happiness=0.5,
             radius=2,
             tempo_bpm=120,
             seed=42,
@@ -168,7 +168,7 @@ class TestGateChords:
         assert cfg.bars_per_window == 4
         assert cfg.vacancy_fraction == 0.3
         assert cfg.tolerance == 0.5
-        assert cfg.happiness == 3
+        assert cfg.happiness == 0.5
         assert cfg.radius == 2
         assert cfg.tempo_bpm == 120
         assert cfg.seed == 42
@@ -180,7 +180,7 @@ class TestGateChords:
             bars_per_window=4,
             vacancy_fraction=0.25,
             tolerance=0.5,
-            happiness=3,
+            happiness=0.5,
             radius=2,
             tempo_bpm=120,
             seed=0,

@@ -25,12 +25,13 @@ def test_stability_profile_shape_and_values(mock_history):
 
 def test_datacollector_wiring():
     from schellingchords.model import SchellingChordModel
+    from schellingchords.config import Config
     from mesa import DataCollector
 
-    model = SchellingChordModel(
+    model = SchellingChordModel(Config(
         n_chord_types=3, bars_per_window=4, vacancy_fraction=0.25,
         tolerance=0.6, happiness=0.5, radius=2, tempo_bpm=120, seed=42
-    )
+    ))
     assert isinstance(model.datacollector, DataCollector)
     assert "segregation_index" in model.datacollector.model_vars
     assert "region_count" in model.datacollector.model_vars
