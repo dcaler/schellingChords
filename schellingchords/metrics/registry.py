@@ -1,34 +1,10 @@
 """
 Registry for distance metrics.
 """
-from typing import Dict, Type
+from typing import Dict
 
 from schellingchords.metrics.protocol import DistanceMetric
-
-
-class PitchClassOverlap:
-    """
-    A simple distance metric based on pitch class overlap.
-    """
-
-    def distance(self, a: list[int], b: list[int]) -> float:
-        """
-        Calculate the distance between two chords based on pitch class overlap.
-
-        Args:
-            a: The first chord, represented as a list of pitch classes.
-            b: The second chord, represented as a list of pitch classes.
-
-        Returns:
-            The distance between the two chords.
-        """
-        set_a = set(a)
-        set_b = set(b)
-        union = set_a.union(set_b)
-        if not union:
-            return 0.0
-        intersection = set_a.intersection(set_b)
-        return 1.0 - (len(intersection) / len(union))
+from schellingchords.metrics.pitch_class_overlap import PitchClassOverlap
 
 
 # Registry of available metrics
