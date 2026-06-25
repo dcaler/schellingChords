@@ -25,7 +25,7 @@ class ChordAgent(Agent):
         Args:
             unique_id: Unique identifier for the agent.
             model: Reference to the model instance. May be ``None`` when the agent
-                is constructed standalone for unit-testing the pure satisfaction
+                is constructed standalone for unittesting the pure satisfaction
                 logic — in that case we skip Mesa's ``Agent.__init__`` (which would
                 call ``model.register_agent(self)`` and crash on ``None``).
             chord_type: Type of chord.
@@ -86,3 +86,41 @@ class ChordAgent(Agent):
     def get_agent_data(self) -> dict:
         """Return agent-level data for reporting."""
         return {}
+
+    def desired_slot(
+        self,
+        vacant_indices: List[int],
+        slots: Any,
+        metric: Callable,
+        tolerance: float,
+        rng: Any,
+    ) -> int:
+        """
+        Choose the best-improving empty slot among the vacant indices.
+
+        Evaluates satisfaction for each vacant slot, selects the one(s) that
+        maximize satisfaction, and breaks ties deterministically using the
+        provided RNG.
+
+        Args:
+            vacant_indices: List of indices representing empty slots.
+            slots: Data structure where ``slots[idx]`` yields the list of
+                   neighbor chord names for slot ``idx``.
+            metric: Callable that computes distance between two chord names.
+            tolerance: Maximum acceptable distance.
+            rng: Random number generator for deterministic tie-breaking.
+
+        Returns:
+            The index of the slot that maximizes satisfaction.
+        """
+        best_sat = -1.0
+        best_candidates = []
+        for idx in vacant_indices:
+            neighbors = slots[idx]
+            sat = self.satisfaction(neighbors, metric, tolerance)
+            if sat > best_sat:
+                best_sat = sat
+                best_candidates = [idx]
+            elif sat == best_sat:
+                best_candidates.append(idx)
+        return rng.choice(best_candidates)
