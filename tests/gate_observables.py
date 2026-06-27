@@ -20,8 +20,13 @@ def test_gate_observables_trend():
         all_runs.append(df["segregation_index"].values)
 
     avg_trend = np.mean(all_runs, axis=0)
-    # G5: mean segregation_index is non-decreasing over a multi-run average
-    assert avg_trend[-1] >= avg_trend[0] - 1e-6
-    # Allow minor stochastic dips but overall trend must be non-decreasing
     diffs = np.diff(avg_trend)
-    assert np.sum(diffs < -1e-6) <= 1
+    # Freeze reconcile (Cale+Claude): faithful Schelling relocates each unsatisfied
+    # agent to a UNIFORMLY RANDOM vacant slot, which can land it somewhere worse, so
+    # segregation_index is a noisy upward DRIFT, not a monotone climb -- a 5-seed
+    # average does not smooth the stochastic dips out. The original "<=1 down-step"
+    # cap encoded a best-improving/monotone intuition the locked random rule violates.
+    # G5 intent (segregation rises over a run) is preserved as: a robust net rise plus
+    # up-steps outnumbering down-steps. (cf. the relocation-faithfulness decision.)
+    assert avg_trend[-1] - avg_trend[0] >= 0.05
+    assert np.sum(diffs > 1e-6) > np.sum(diffs < -1e-6)
