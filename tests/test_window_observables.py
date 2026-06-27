@@ -28,7 +28,12 @@ def test_segregation_index_and_region_count(tolerance, expected_seg, expected_re
 
     # Build 1D window state: chord name or None for rests
     window_state = [WINDOW_CHORD_MAP.get(i) for i in range(WINDOW_TOTAL_SLOTS)]
-    metric = lambda a, b: DISTANCES.get((a, b), 1.0)
+    # Freeze reconcile (Cale+Claude): DISTANCES is a half-matrix (each unordered
+    # pair stored once, no diagonal), so a raw DISTANCES.get((a,b),1.0) is neither
+    # reflexive (d(a,a) -> 1.0) nor symmetric (d(Em,C) -> 1.0 while d(C,Em)=0.5).
+    # The golden expected values (0.8, 6) were computed under the TRUE Jaccard
+    # metric, so the adapter must present one: identity -> 0.0, and try both orders.
+    metric = lambda a, b: 0.0 if a == b else DISTANCES.get((a, b), DISTANCES.get((b, a), 1.0))
 
     seg = segregation_index(window_state, metric, tolerance, radius=2)
     reg = region_count(window_state, metric, tolerance)
