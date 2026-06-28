@@ -11,17 +11,23 @@ import subprocess
 from pretty_midi import PrettyMIDI, Instrument, Note
 
 from schellingchords.config import Config
+from schellingchords.chords import VOCABULARIES
 
-# Mapping of chord names to their pitch classes (integers 0-11)
-# Based on the diatonic_major vocabulary in chords.py
-DIATONIC_CHORDS = {
-    "C": [0, 4, 7],
-    "Dm": [2, 5, 9],
-    "Em": [4, 7, 11],
-    "F": [0, 5, 9],
-    "G": [2, 7, 11],
-    "Am": [0, 4, 9],
-    "Bdim": [2, 5, 11],
+# Rendering octave base. Pitch classes (0-11) are voiced at MIDI base 48; the
+# mod-12 reduction of any rendered note therefore equals its pitch class exactly.
+# (This is one octave below the canonical ``Chord.midi_voicing`` base of 60; the
+# octave is a deliberate rendering choice and is mod-12 irrelevant.)
+_VOICING_BASE = 48
+
+# Single source of truth: derive chord -> pitch-class sets directly from the
+# canonical vocabulary in chords.py, the same definitions the model and the
+# distance metric use. NOT a private copy -- if a chord's pitch classes are
+# corrected in chords.py, the rendered audio follows automatically and cannot
+# silently diverge (the B-flat/B mislabel net). Sorted for deterministic voicings.
+CHORD_PITCH_CLASSES = {
+    chord.name: sorted(chord.pitch_classes)
+    for factory in VOCABULARIES.values()
+    for chord in factory()
 }
 
 
@@ -33,15 +39,14 @@ def chord_to_notes(chord_name: str) -> List[int]:
         chord_name: The name of the chord (e.g., "C", "Dm").
 
     Returns:
-        A list of MIDI note numbers corresponding to the chord's pitch classes
-        in octave 4 (MIDI base 48).
+        A list of MIDI note numbers corresponding to the chord's pitch classes,
+        voiced at MIDI base 48.
     """
-    if chord_name not in DIATONIC_CHORDS:
+    if chord_name not in CHORD_PITCH_CLASSES:
         raise ValueError(f"Unknown chord name: {chord_name}")
-    
-    pitch_classes = DIATONIC_CHORDS[chord_name]
-    # Voicing places pitch classes in octave 4 (MIDI base 48)
-    midi_notes = [pc + 48 for pc in pitch_classes]
+
+    pitch_classes = CHORD_PITCH_CLASSES[chord_name]
+    midi_notes = [pc + _VOICING_BASE for pc in pitch_classes]
     return midi_notes
 
 
@@ -96,8 +101,9 @@ def trajectory_to_midi(history: List[List[Optional[str]]], cfg: Config) -> Prett
     instrument = Instrument(program=0, is_drum=False)
     beat_dur = 60.0 / cfg.tempo_bpm
     
+    window_beats = cfg.bars_per_window * cfg.beats_per_bar
     for w_idx, window in enumerate(history):
-        window_start_beat = w_idx * (cfg.bars_per_window * 4)
+        window_start_beat = w_idx * window_beats
         for slot_idx, chord_name in enumerate(window):
             if chord_name is None:
                 continue
@@ -116,7 +122,7 @@ def trajectory_to_midi(history: List[List[Optional[str]]], cfg: Config) -> Prett
     pm.instruments.append(instrument)
     
     # Ensure total duration matches expected window length
-    total_beats = len(history) * cfg.bars_per_window * 4
+    total_beats = len(history) * window_beats
     expected_duration = total_beats * beat_dur
     if instrument.notes:
         max_start = max(n.start for n in instrument.notes)
