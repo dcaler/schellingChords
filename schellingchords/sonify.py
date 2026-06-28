@@ -5,6 +5,9 @@ Converts chord names to MIDI pitch classes and windows of chords to PrettyMIDI o
 """
 
 from typing import List, Optional
+from pathlib import Path
+import subprocess
+
 from pretty_midi import PrettyMIDI, Instrument, Note
 
 from schellingchords.config import Config
@@ -60,17 +63,11 @@ def window_to_midi(window: List[Optional[str]], cfg: Config) -> PrettyMIDI:
     
     for idx, chord_name in enumerate(window):
         if chord_name is None:
-            # Empty slot = rest (no notes)
             continue
         
-        # Get MIDI notes for the chord
         midi_notes = chord_to_notes(chord_name)
-        
-        # Calculate start time based on beat index
         start_time = idx * beat_dur
         
-        # Add notes to the instrument
-        # Note duration is one beat (quarter note)
         for pitch in midi_notes:
             note = Note(
                 velocity=100,
@@ -82,3 +79,83 @@ def window_to_midi(window: List[Optional[str]], cfg: Config) -> PrettyMIDI:
     
     pm.instruments.append(instrument)
     return pm
+
+
+def trajectory_to_midi(history: List[List[Optional[str]]], cfg: Config) -> PrettyMIDI:
+    """
+    Concatenate a sequence of windows into a single PrettyMIDI object.
+
+    Args:
+        history: A list of window states, each a list of chord names or None.
+        cfg: The configuration object containing tempo and other parameters.
+
+    Returns:
+        A PrettyMIDI object representing the full trajectory.
+    """
+    pm = PrettyMIDI()
+    instrument = Instrument(program=0, is_drum=False)
+    beat_dur = 60.0 / cfg.tempo_bpm
+    
+    for w_idx, window in enumerate(history):
+        window_start_beat = w_idx * (cfg.bars_per_window * 4)
+        for slot_idx, chord_name in enumerate(window):
+            if chord_name is None:
+                continue
+            global_beat = window_start_beat + slot_idx
+            start_time = global_beat * beat_dur
+            midi_notes = chord_to_notes(chord_name)
+            for pitch in midi_notes:
+                note = Note(
+                    velocity=100,
+                    pitch=pitch,
+                    start=start_time,
+                    end=start_time + beat_dur
+                )
+                instrument.notes.append(note)
+                
+    pm.instruments.append(instrument)
+    
+    # Ensure total duration matches expected window length
+    total_beats = len(history) * cfg.bars_per_window * 4
+    expected_duration = total_beats * beat_dur
+    if instrument.notes:
+        max_start = max(n.start for n in instrument.notes)
+        for n in instrument.notes:
+            if n.start == max_start:
+                n.end = expected_duration
+                
+    return pm
+
+
+def render_wav(pm: PrettyMIDI, soundfont: Optional[str], out: str) -> None:
+    """
+    Render a PrettyMIDI object to a WAV file using fluidsynth.
+
+    Args:
+        pm: The PrettyMIDI object to render.
+        soundfont: Path to the SoundFont file. If None, raises RuntimeError.
+        out: Output path for the WAV file.
+
+    Raises:
+        RuntimeError: If soundfont is None or fluidsynth is unavailable/fails.
+    """
+    out_path = Path(out)
+    mid_path = out_path.with_suffix('.mid')
+    
+    # Always emit the MIDI file first
+    pm.write(str(mid_path))
+    
+    if soundfont is None:
+        raise RuntimeError("soundfont path is required for audio rendering")
+        
+    # Attempt to render via fluidsynth
+    try:
+        subprocess.run(
+            ["fluidsynth", "-F", str(out_path), soundfont, str(mid_path)],
+            check=True,
+            capture_output=True
+        )
+    except FileNotFoundError:
+        raise RuntimeError("fluidsynth command not found. Install fluidsynth to render audio.")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"fluidsynth failed: {e.stderr.decode()}")
