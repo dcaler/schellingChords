@@ -1,5 +1,31 @@
 import pytest
+from pathlib import Path
 from tests.golden import DIATONIC_CHORDS, OVERLAP_COUNTS, DISTANCES
+
+# M8.T1 deliverable. Resolved from the test file (not cwd) so the check holds
+# wherever pytest is invoked from.
+DEMO_YAML = Path(__file__).resolve().parent.parent / "configs" / "demo.yaml"
+
+
+def test_demo_yaml_exists_and_is_musically_meaningful():
+    """Freeze reconcile (Cale+Claude): the original suite tested an inline kwargs
+    dict and the golden constants but NEVER referenced the actual deliverable
+    (configs/demo.yaml) — so it passed green with no demo config written at all. That
+    was a false green (a 'demo config' milestone needing no demo config) AND gave the
+    worker no target: M8.T1 a1 free-associated 23k chars over 141 min and produced no
+    file. Assert the deliverable exists, loads via Config.load_yaml, and carries
+    musically-meaningful values so M8.T2's acceptance run can actually segregate."""
+    from schellingchords.config import Config
+
+    assert DEMO_YAML.is_file(), f"M8.T1 deliverable missing: {DEMO_YAML}"
+    cfg = Config.load_yaml(str(DEMO_YAML))
+    assert cfg.n_chord_types >= 2, "need >=2 chord types to segregate"
+    assert 0 <= cfg.vacancy_fraction < 1, "vacancy must leave room to move but not empty"
+    assert 0 < cfg.tolerance <= 1
+    assert 0 < cfg.happiness <= 1
+    assert cfg.radius >= 1
+    assert cfg.bars_per_window >= 1 and cfg.beats_per_bar >= 1
+    assert cfg.n_steps >= 50, "demo must run long enough to segregate audibly"
 
 
 @pytest.fixture

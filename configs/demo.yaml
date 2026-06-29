@@ -1,0 +1,13 @@
+# M8.T1 demo config — a small but musically meaningful run.
+# 4 diatonic chord types over a 16-slot window (4 bars x 4 beats), 25% vacant,
+# run long enough (200 steps) that segregation emerges audibly in the ordering.
+n_chord_types: 4
+bars_per_window: 4
+beats_per_bar: 4
+vacancy_fraction: 0.25
+tolerance: 0.5
+happiness: 0.6
+radius: 2
+n_steps: 200
+tempo_bpm: 120
+seed: 42
