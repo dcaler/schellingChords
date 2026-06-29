@@ -142,7 +142,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     p_sweep.add_argument("config", help="Path to a YAML config file.")
     p_sweep.add_argument("param", help="Config field to vary (e.g. tolerance).")
     p_sweep.add_argument(
-        "values", help="Comma-separated values, e.g. 0.3,0.5,0.7"
+        "values", nargs="+", help="One or more values to sweep, e.g. 0.3 0.5 0.7"
     )
     p_sweep.add_argument(
         "-o", "--out-dir", default="sweep_outputs", help="Output directory."
@@ -152,7 +152,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     if args.command == "single":
         single(args.config, args.out_dir)
     elif args.command == "sweep":
-        values = [_parse_scalar(v) for v in args.values.split(",")]
+        values = [_parse_scalar(v) for v in args.values]
         sweep(args.config, args.param, values, args.out_dir)
 
 
