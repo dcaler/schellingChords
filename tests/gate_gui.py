@@ -1,8 +1,7 @@
 """G9 — Headless integration gate: launch app, drive ticks, verify player+viz+slider."""
 import pytest
-import pygame
 import pygame_gui
-from tests.golden import WINDOW_TOTAL_SLOTS, WINDOW_OCCUPIED_SLOTS
+from tests.golden import WINDOW_TOTAL_SLOTS
 
 
 class TestGateGUIHeadless:
@@ -27,15 +26,21 @@ class TestGateGUIHeadless:
         assert gui_app.lattice_view.window_index == 0
 
     def test_gate_full_window_step_trigger(self, gui_app):
-        """Drive full window — model.step() fires at boundary."""
+        """Drive full window — model.step() fires at boundary.
+
+        Freeze reconcile (Cale+Claude): spy on Mesa's genuine `model.steps`, not the
+        `_step_count` attribute the model never defines (same oracle bug fixed in
+        tests/test_player.py — both reads returned the 0 default, so == +1 was
+        unsatisfiable regardless of the gui implementation).
+        """
         gui_app.run_button.click()
-        original_step_count = getattr(gui_app.live_player.model, "_step_count", 0)
+        original_steps = gui_app.live_player.model.steps
 
         for _ in range(WINDOW_TOTAL_SLOTS):
             gui_app.live_player.generate_tick()
 
-        # After full window, step should have been called once
-        assert getattr(gui_app.live_player.model, "_step_count", 0) == original_step_count + 1
+        # After full window, step should have fired once
+        assert gui_app.live_player.model.steps == original_steps + 1
 
     def test_gate_slider_mid_run(self, gui_app):
         """Moving tolerance slider changes RuntimeParams mid-run."""
@@ -105,12 +110,12 @@ class TestGateGUIHeadless:
     def test_gate_multiple_windows(self, gui_app):
         """Drive through 2 full windows — step fires twice."""
         gui_app.run_button.click()
-        original_step_count = getattr(gui_app.live_player.model, "_step_count", 0)
+        original_steps = gui_app.live_player.model.steps
 
         for _ in range(WINDOW_TOTAL_SLOTS * 2):
             gui_app.live_player.generate_tick()
 
-        assert getattr(gui_app.live_player.model, "_step_count", 0) == original_step_count + 2
+        assert gui_app.live_player.model.steps == original_steps + 2
         assert gui_app.live_player.window_index == 2
 
     def test_gate_occupied_count_invariant(self, gui_app):
