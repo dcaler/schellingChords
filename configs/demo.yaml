@@ -1,0 +1,9 @@
+n_chord_types: 3
+bars_per_window: 8
+vacancy_fraction: 0.2
+tolerance: 0.5
+happiness: 0.5
+radius: 2
+tempo_bpm: 120
+seed: 42
+n_steps: 50

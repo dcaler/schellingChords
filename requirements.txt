@@ -1,0 +1,12 @@
+# Runtime dependencies for SchellingChords (mirrors [project.dependencies] in
+# pyproject.toml). For the one-command install prefer `pip install -e .`, which
+# reads pyproject directly. This file is the "just the deps, no package" path:
+#     pip install -r requirements.txt
+mesa>=3.0,<4
+networkx>=3.0
+pyyaml>=6.0
+numpy>=1.24.0
+pandas>=2.0
+pretty_midi>=0.2.10
+scipy>=1.9
+pygame_gui>=0.6,<0.7

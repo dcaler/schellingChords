@@ -1,0 +1,12 @@
+bars_per_window: 4
+beats_per_bar: 4
+radius: 2
+tolerance: 0.5
+happiness: 0.5
+vacancy_fraction: 0.25
+n_chord_types: 3
+n_steps: 100
+seed: 42
+tempo_bpm: 100
+metric: pitch_class_overlap
+vocabulary: diatonic_major

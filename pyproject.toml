@@ -1,0 +1,24 @@
+[project]
+name = "schellingchords"
+version = "0.1.0"
+description = "A Mesa agent-based model that sonifies Schelling segregation of chords"
+requires-python = ">=3.10"
+dependencies = [
+    "mesa>=3.0,<4",          # 3.x API: model.steps, discrete_space
+    "networkx>=3.0",         # required by mesa 3.x (discrete_space); not always auto-pulled
+    "pyyaml>=6.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0",           # DataCollector.get_model_vars_dataframe()
+    "pretty_midi>=0.2.10",   # sonify; pulls in mido + scipy
+    "scipy>=1.9",            # GUI reverb (fftconvolve); also a pretty_midi dep
+    "pygame_gui>=0.6,<0.7",  # 0.6.x API (UI_HORIZONTAL_SLIDER_MOVED, .value_range); pulls pygame-ce
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+# Only ship the package itself; keep flat-layout siblings (configs/) out of the
+# wheel so auto-discovery doesn't error on "multiple top-level packages".
+include = ["schellingchords*"]

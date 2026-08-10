@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+
+# Virtualenvs
+.venv/
+venv/
+
+# Audio / model render artifacts
+outputs/
+output/
+*.wav
+*.sf2
+
+# Local run config
+config.json
+
+# Editor / OS
+.DS_Store
+*.swp
