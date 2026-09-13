@@ -1,0 +1,19 @@
+{
+  "upload_type": "software",
+  "title": "schellingChords: a sonified Schelling segregation model over chord voicings",
+  "description": "<p>A Mesa agent-based model that runs a one-dimensional Schelling segregation process in which the agents are chords occupying the beats of a 4/4 window, and sonifies the segregation as it unfolds. A chord is satisfied when the mean Jaccard distance of its pitch-class set to its occupied neighbours falls within tolerance; unsatisfied chords relocate to a random vacant slot.</p>",
+  "creators": [
+    {
+      "name": "Reeves, D. Cale",
+      "orcid": "0000-0001-5156-594X"
+    }
+  ],
+  "keywords": [
+    "agent-based modelling",
+    "Schelling segregation",
+    "sonification",
+    "computational social science",
+    "Mesa"
+  ],
+  "access_right": "open"
+}

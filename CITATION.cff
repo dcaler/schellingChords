@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "schellingChords: a sonified Schelling segregation model over chord voicings"
+abstract: >-
+  A Mesa agent-based model that runs a one-dimensional Schelling segregation
+  process in which the agents are chords occupying the beats of a 4/4 window,
+  and sonifies the segregation as it unfolds. A chord is satisfied when the
+  mean Jaccard distance of its pitch-class set to its occupied neighbours falls
+  within tolerance; unsatisfied chords relocate to a random vacant slot.
+authors:
+  - family-names: Reeves
+    given-names: D. Cale
+    orcid: "https://orcid.org/0000-0001-5156-594X"
+repository-code: "https://github.com/dcaler/schellingChords"
+url: "https://github.com/dcaler/schellingChords"
+license: MIT
+keywords:
+  - agent-based modelling
+  - Schelling segregation
+  - sonification
+  - computational social science
+  - Mesa
+version: 0.1.0
+date-released: "2026-09-13"
