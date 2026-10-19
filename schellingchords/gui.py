@@ -12,9 +12,12 @@ submodule and no ``UISlider`` class).
 import json
 import os
 import random
+import wave
 from dataclasses import replace
+from datetime import datetime
 
 import numpy as np
+import pretty_midi
 from scipy.signal import fftconvolve
 import pygame
 import pygame_gui
@@ -101,6 +104,9 @@ class SchellingGUI:
     _REVERB_WET = 0.30      # amount of reverb mixed under the dry tone
     _DRY_GAIN = 0.80        # dry-signal level in the mix
     _PAN_WIDTH = 0.90       # 0 = mono/centre, 1 = full hard-left..hard-right by slot
+    _REC_RATE = 44100       # sample rate of the "Audio out" WAV render
+    _REC_DIR = "output"     # where "Audio out" writes its .wav + .mid pair
+    _REC_PROGRAM = 16       # GM Drawbar Organ: closest to the additive reedy tone
 
     def __init__(self, config=None):
         pygame.init()
@@ -122,6 +128,13 @@ class SchellingGUI:
         self._spatial_on = True         # reverb + pan-by-position (tier-2 spatial audio)
         self._sound_cache = {}
         self._ir = None                 # cached stereo reverb impulse response
+        # "Audio out" recorder: while on, every note attack the live voice makes is
+        # logged as (time_s, notes, pan) on a musical clock that advances one slot
+        # per beat crossed (so pauses leave no gaps). Toggling off renders the log
+        # to a WAV (same synth as live) and a MIDI file. None => not recording.
+        self._rec = None
+        self._rec_t = 0.0
+        self._rec_status = ""
 
         cfg = config if config is not None else Config(
             n_chord_types=2, radius=1, seed=8675309, vacancy_fraction=0.2)
@@ -230,6 +243,7 @@ class SchellingGUI:
         """Cross one beat: reveal that origin's decision into the ghost, advance the
         playhead, and roll the ghost up to current at the end of the window."""
         self._ensure_plan()
+        self._rec_t += self._slot_dur()          # recorder's musical clock: one slot
         name = self._cur[self._ph]
         if name is not None:                     # rests have no agent to reveal
             self._ghost[self._moves.get(self._ph, self._ph)] = name
@@ -403,6 +417,108 @@ class SchellingGUI:
         self._spatial_on = not self._spatial_on
         self.spatial_button.set_text("Spatial: On" if self._spatial_on else "Spatial: Off")
 
+    def _on_toggle_audio_out(self):
+        """Start recording, or stop and write the WAV + MIDI of what was played."""
+        if self._rec is None:
+            self._rec = []
+            self._rec_t = 0.0
+            self._rec_tempo = int(getattr(self.runtime_params, "tempo_bpm", 120))
+            self._rec_status = "recording…"
+        else:
+            self._finish_recording()
+        self.audio_out_button.set_text(
+            "Audio out: On" if self._rec is not None else "Audio out: Off")
+
+    def _record_event(self, notes, pan):
+        """Log one note attack at the recorder clock. A re-sound of the same beat
+        (Run after Pause re-plays the slot under the playhead) replaces, not doubles."""
+        ev = (self._rec_t, tuple(int(p) for p in notes), pan)
+        if self._rec and abs(self._rec[-1][0] - self._rec_t) < 1e-9:
+            self._rec[-1] = ev
+        else:
+            self._rec.append(ev)
+
+    def _finish_recording(self):
+        """Stop recording; write ``<stamp>_schellingchords_seed<seed>.wav/.mid`` to
+        ``_REC_DIR``. Returns (wav_path, mid_path), or None if nothing was played."""
+        events, self._rec = self._rec, None
+        if not events:
+            self._rec_status = "nothing recorded"
+            return None
+        t0 = events[0][0]
+        events = [(t - t0, notes, pan) for t, notes, pan in events]
+        os.makedirs(self._REC_DIR, exist_ok=True)
+        stem = os.path.join(
+            self._REC_DIR,
+            f"{datetime.now():%y%m%d_%H%M%S}_schellingchords_seed{int(self.runtime_params.seed)}")
+        wav_path, mid_path = stem + ".wav", stem + ".mid"
+        try:
+            self._write_wav(events, wav_path)
+            self._write_midi(events, mid_path)
+        except Exception as exc:              # never let file output break the loop
+            self._rec_status = f"audio out failed: {exc}"
+            print(self._rec_status)
+            return None
+        self._rec_status = f"saved .wav + .mid to {self._REC_DIR}/"
+        print(f"Audio out: wrote {wav_path} and {mid_path}")
+        return wav_path, mid_path
+
+    def _write_wav(self, events, path):
+        """Offline render mirroring the live voice: each attack is the same synthesised
+        sample, panned the same way, and released with the same linear fade
+        (``_NOTE_RELEASE_MS``) when the next attack arrives."""
+        rate = self._REC_RATE
+        cache = {}
+        last_t = events[-1][0]
+        total = int((last_t + 2.5) * rate)       # 1.5 s note + ~0.9 s reverb tail
+        mix = np.zeros((total, 2), dtype=np.float64)
+        fade = int(rate * self._NOTE_RELEASE_MS / 1000.0)
+        for i, (t, notes, pan) in enumerate(events):
+            key = (notes, pan is not None)
+            if key not in cache:
+                cache[key] = self._synth_chord(notes, pan is not None, rate, 2)
+            snd = cache[key].copy()
+            if pan is not None:
+                snd[:, 0] *= np.cos(pan * np.pi / 2)
+                snd[:, 1] *= np.sin(pan * np.pi / 2)
+            if i + 1 < len(events):               # released at the next attack
+                k = int(round((events[i + 1][0] - t) * rate))
+                if k < len(snd):
+                    env = np.zeros(len(snd))
+                    env[:k] = 1.0
+                    f = min(fade, len(snd) - k)
+                    env[k:k + f] = np.linspace(1.0, 0.0, f)
+                    snd *= env[:, None]
+            start = int(round(t * rate))
+            end = min(total, start + len(snd))
+            mix[start:end] += snd[:end - start]
+        peak = float(np.max(np.abs(mix))) or 1.0
+        if peak > 0.99:                           # overlapping tails: avoid clipping
+            mix *= 0.99 / peak
+        pcm = (mix * 32767).astype("<i2")
+        with wave.open(path, "wb") as fh:
+            fh.setnchannels(2)
+            fh.setsampwidth(2)
+            fh.setframerate(rate)
+            fh.writeframes(pcm.tobytes())
+
+    def _write_midi(self, events, path):
+        """One note per chord tone; each held until the next attack (as the live
+        voice is) or its natural ~1.5 s decay. Spatial pan becomes CC10."""
+        pm = pretty_midi.PrettyMIDI(initial_tempo=float(getattr(self, "_rec_tempo", 120)))
+        inst = pretty_midi.Instrument(program=self._REC_PROGRAM, name="SchellingChords")
+        for i, (t, notes, pan) in enumerate(events):
+            end = t + 1.5
+            if i + 1 < len(events):
+                end = min(end, events[i + 1][0])
+            if pan is not None:
+                inst.control_changes.append(pretty_midi.ControlChange(
+                    number=10, value=int(round(127 * pan)), time=t))
+            for p in notes:
+                inst.notes.append(pretty_midi.Note(velocity=90, pitch=p, start=t, end=end))
+        pm.instruments.append(inst)
+        pm.write(path)
+
     def _reverb_ir(self, freq):
         """Cached stereo reverb impulse response: two independent (decorrelated)
         decaying-noise tails, giving the note a diffuse sense of space/width. Built
@@ -429,8 +545,15 @@ class SchellingGUI:
         clump of identical slots reads as one held note (not a 16th blip), but not an
         endless sustain. The note is also cut at the next onset by the channel
         fadeout in ``_play_beat``."""
-        freq, _size, channels = pygame.mixer.get_init()
-        dur = 1.5                                       # capped; note-off may cut sooner
+        _freq, _size, channels = pygame.mixer.get_init()
+        arr = self._synth_chord(notes, spatial, _freq, channels)
+        return pygame.sndarray.make_sound(
+            np.ascontiguousarray((arr * 32767).astype(np.int16)))
+
+    def _synth_chord(self, notes, spatial, freq, channels):
+        """The chord tone as floats at peak 0.30, shape (n, 2) for stereo or (n,)
+        for mono. Mixer-free, so the "Audio out" render reuses it offline."""
+        dur = 1.5                                      # capped; note-off may cut sooner
         n = int(freq * dur)
         t = np.arange(n, dtype=np.float64) / freq
         wave = np.zeros(n, dtype=np.float64)
@@ -471,14 +594,10 @@ class SchellingGUI:
             out_r += wet_r * self._REVERB_WET
             pk = max(float(np.max(np.abs(out_l))), float(np.max(np.abs(out_r)))) or 1.0
             # 0.30 leaves headroom for several ringing/overlapping tails (long release).
-            left = (out_l / pk * 0.30 * 32767).astype(np.int16)
-            right = (out_r / pk * 0.30 * 32767).astype(np.int16)
-            arr = np.column_stack([left, right])
-        else:
-            # Dry (spatial off, or mono mixer): centre the tone, no reverb.
-            mono = (dry * 0.30 * 32767).astype(np.int16)
-            arr = np.column_stack([mono, mono]) if channels == 2 else mono
-        return pygame.sndarray.make_sound(np.ascontiguousarray(arr))
+            return np.column_stack([out_l / pk * 0.30, out_r / pk * 0.30])
+        # Dry (spatial off, or mono mixer): centre the tone, no reverb.
+        mono = dry * 0.30
+        return np.column_stack([mono, mono]) if channels == 2 else mono
 
     def _play_beat(self, name, slot=None):
         """Sound the slot under the playhead. Every note gets a little attack, but a
@@ -490,8 +609,11 @@ class SchellingGUI:
         and the sustain continues across transitions and the window wrap."""
         prev = self._voice_prev
         self._voice_prev = name
-        if not (self._sound_on and self._mixer_ok) or name is None:
-            return                          # muted or a rest: the current note rings on
+        if name is None:
+            return                          # a rest: the current note rings on
+        live = self._sound_on and self._mixer_ok
+        if not (live or self._rec is not None):
+            return                          # muted and not recording
         now = pygame.time.get_ticks()
         if name == prev and (now - self._last_attack_ms) < self._REARTICULATE_MS:
             return                          # same chord, too soon to re-strike: ring on
@@ -501,6 +623,10 @@ class SchellingGUI:
             voicing = self._voicing_map.get(slot) if slot is not None else None
             notes = tuple(voicing) if voicing else tuple(int(p) for p in chord_to_notes(name))
             spatial = self._spatial_on
+            if self._rec is not None:
+                self._record_event(notes, self._pan(slot) if spatial else None)
+            if not live:
+                return
             key = (notes, spatial)                  # dry and spatial samples cache apart
             snd = self._sound_cache.get(key)
             if snd is None:
@@ -512,14 +638,26 @@ class SchellingGUI:
             if new_ch is not None and spatial:
                 # Pan by lattice position: slot 0 -> left, last slot -> right, so
                 # as like-chords cluster you hear them group in the stereo field.
-                n_cells = len(self._cur) if getattr(self, "_cur", None) else 1
-                pos = 0.5 if slot is None else slot / max(1, n_cells - 1)
-                eff = 0.5 + (pos - 0.5) * self._PAN_WIDTH        # equal-power pan
+                eff = self._pan(slot)                            # equal-power pan
                 new_ch.set_volume(float(np.cos(eff * np.pi / 2)),
                                   float(np.sin(eff * np.pi / 2)))
             self._voice_channel = new_ch
         except Exception:
             self._voice_channel = None      # never let audio break the loop
+
+    def _pan(self, slot):
+        """Pan position in [0, 1] for a lattice slot (0.5 = centre), narrowed by
+        ``_PAN_WIDTH``."""
+        n_cells = len(self._cur) if getattr(self, "_cur", None) else 1
+        pos = 0.5 if slot is None else slot / max(1, n_cells - 1)
+        return 0.5 + (pos - 0.5) * self._PAN_WIDTH
+
+    def _slot_dur(self):
+        """Seconds per lattice slot at the current tempo: each slot is a
+        1/beats_per_bar-of-a-4/4-bar note; tempo is quarter-note BPM."""
+        bpm = max(1, int(getattr(self.runtime_params, "tempo_bpm", 120)))
+        bpb = max(1, int(getattr(self.config, "beats_per_bar", 4)))
+        return (60.0 / bpm) * (4.0 / bpb)
 
     def _on_step(self):
         self._advance_beat()
@@ -580,9 +718,9 @@ class SchellingGUI:
             manager=self.manager,
         )
 
-    def _button(self, pos, text, callback):
+    def _button(self, pos, text, callback, size=(100, 30)):
         btn = UIButton(
-            relative_rect=pygame.Rect(pos, (100, 30)),
+            relative_rect=pygame.Rect(pos, size),
             text=text,
             manager=self.manager,
         )
@@ -597,7 +735,7 @@ class SchellingGUI:
         self.tempo_slider = self._slider((10, 90), rp.tempo_bpm, (40, 480))
         self.n_chord_types_slider = self._slider((10, 130), rp.n_chord_types, (2, 7))
         self.bars_per_window_slider = self._slider((10, 170), rp.bars_per_window, (1, 8))
-        self.radius_slider = self._slider((10, 210), rp.radius, (1, 6))
+        self.radius_slider = self._slider((10, 210), rp.radius, (1, 16))
         # note subdivision: level 1/2/3 -> quarter/eighth/16th (applied on reset)
         self.subdiv_slider = self._slider(
             (10, 250), self._BPB_LEVEL.get(int(getattr(rp, "beats_per_bar", 4)), 1), (1, 3))
@@ -618,6 +756,8 @@ class SchellingGUI:
         self.reseed_button = self._button((230, 390), "re-seed", self._on_reseed)
         self.quit_button = self._button((340, 390), "Quit", self._on_quit)
         self.spatial_button = self._button((450, 390), "Spatial: On", self._on_toggle_spatial)
+        self.audio_out_button = self._button(
+            (560, 390), "Audio out: Off", self._on_toggle_audio_out, size=(130, 30))
 
         # Scenario preset + chord-vocabulary dropdowns (right column, below chart).
         self.scenario_dropdown = UIDropDownMenu(
@@ -691,10 +831,7 @@ class SchellingGUI:
         # Beat clock: while playing, cross beats at tempo. Guard caps catch-up so a
         # large dt (after a stall) can't spiral.
         if self._playing and not self._paused:
-            bpm = max(1, int(getattr(self.runtime_params, "tempo_bpm", 120)))
-            bpb = max(1, int(getattr(self.config, "beats_per_bar", 4)))
-            # each slot is a 1/bpb-of-a-4/4-bar note; tempo is quarter-note BPM.
-            slot_dur = (60.0 / bpm) * (4.0 / bpb)
+            slot_dur = self._slot_dur()
             self._beat_accum += dt
             guard = 0
             while self._beat_accum >= slot_dur and guard < 64:
@@ -834,6 +971,12 @@ class SchellingGUI:
             f"note: {self._BPB_NAME.get(bpb, '?')}", True, self._ink), (225, 257))
         # label for the seed numeric input (sits at y=290, to its right)
         self.surface.blit(self._font.render("seed", True, self._ink), (120, 297))
+        # "Audio out" status, right of its button (recording time, or the saved name)
+        status = self._rec_status
+        if self._rec is not None:
+            status = f"recording… {self._rec_t:.1f} s"
+        if status:
+            self.surface.blit(self._font.render(status, True, self._ink), (700, 397))
         # dropdown labels (right column, above each menu)
         self.surface.blit(self._font.render("scenario", True, self._ink), (560, 337))
         self.surface.blit(self._font.render("vocabulary", True, self._ink), (820, 337))
@@ -877,6 +1020,8 @@ class SchellingGUI:
             self.update(dt)
             self.render()
             pygame.display.flip()
+        if self._rec is not None:              # still recording at quit: save it
+            self._finish_recording()
         pygame.quit()
 
 
